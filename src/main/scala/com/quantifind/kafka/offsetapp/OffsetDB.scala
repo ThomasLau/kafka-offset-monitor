@@ -84,6 +84,7 @@ class OffsetDB(dbfile: String) {
 	}
 
 	def offsetHistory(group: String, topic: String): OffsetHistory = database.withSession {
+		// println(group+"<------>"+topic)
 		sqliteDbLock.synchronized {
 			implicit s =>
 				val o = offsets
@@ -91,6 +92,18 @@ class OffsetDB(dbfile: String) {
 						.sortBy(_.timestamp)
 						.map(_.forHistory)
 						.list(implicitly[JdbcBackend#Session])
+				OffsetHistory(group, topic, o)
+		}
+	}
+
+	def offsetLatest(group: String, topic: String): OffsetHistory = database.withSession {
+		sqliteDbLock.synchronized {
+			implicit s =>
+				val o = offsets
+					.filter(off => off.group === group && off.topic === topic)
+					.sortBy(_.timestamp)//.drop(0).take(1)
+					.map(_.forHistory)
+					.list(implicitly[JdbcBackend#Session])
 				OffsetHistory(group, topic, o)
 		}
 	}

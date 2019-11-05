@@ -69,33 +69,28 @@ object OffsetGetterWeb extends UnfilteredWebApp[OWArgs] with Logging {
   }
 
   def reportOffsets(args: OWArgs) {
-
 		try {
-    val groups = getGroups(args)
-    groups.foreach {
-      g =>
-        val inf = getInfo(g, args).offsets.toIndexedSeq
-        debug(s"reporting ${inf.size}")
-					reporters.foreach(reporter => retryTask {
-						reporter.report(inf)
-					})
-    }
-  }
-		catch {
-
+      val groups = getGroups(args)
+      groups.foreach {
+        g =>
+          val inf = getInfo(g, args).offsets.toIndexedSeq
+          debug(s"reporting ${inf.size}")
+            reporters.foreach(reporter => retryTask {
+              reporter.report(inf)
+            })
+      }
+    }catch {
 			case e: Throwable =>
 				error("Error while in reportOffsets().", e)
 		}
 	}
 
 	def cleanupOldData() = {
-
 		reporters.foreach(reporter => retryTask({ reporter.cleanupOldData() }));
 	}
 
 	/* Schedule time-based threads */
 	def schedule(args: OWArgs) {
-
 		scheduler.scheduleAtFixedRate(() => { reportOffsets(args) },
 			millisBeforeStartingReportingThread, args.refresh.toMillis, TimeUnit.MILLISECONDS)
 		scheduler.scheduleAtFixedRate(() => { cleanupOldData() },
@@ -174,27 +169,30 @@ object OffsetGetterWeb extends UnfilteredWebApp[OWArgs] with Logging {
     reporters = createOffsetInfoReporters(args)
 
     schedule(args)
-
+    var prep = args.context
     def intent: Plan.Intent = {
-      case GET(Path(Seg("group" :: Nil))) =>
+      case GET(Path(Seg(prep::"group" :: Nil))) =>
 				JsonContent ~> ResponseString(write(getActiveGroups(args)))
-      case GET(Path(Seg("group" :: group :: Nil))) =>
+      case GET(Path(Seg(prep::"group" :: group :: Nil))) =>
         val info = getInfo(group, args)
         JsonContent ~> ResponseString(write(info)) ~> Ok
-      case GET(Path(Seg("group" :: group :: topic :: Nil))) =>
+      case GET(Path(Seg(prep::"group" :: group :: topic :: Nil))) =>
         val offsets = args.db.offsetHistory(group, topic)
         JsonContent ~> ResponseString(write(offsets)) ~> Ok
-			case GET(Path(Seg("consumergroup" :: Nil))) =>
+      case GET(Path(Seg(prep::"latest" :: "group" :: group :: topic :: Nil))) =>
+        val offsets = args.db.offsetLatest(group, topic)
+        JsonContent ~> ResponseString(write(offsets)) ~> Ok
+			case GET(Path(Seg(prep::"consumergroup" :: Nil))) =>
 				JsonContent ~> ResponseString(getConsumerGroupStatus(args)) ~> Ok
-      case GET(Path(Seg("topiclist" :: Nil))) =>
+      case GET(Path(Seg(prep::"topiclist" :: Nil))) =>
 				JsonContent ~> ResponseString(write(getTopicsAndLogEndOffsets(args)))
-      case GET(Path(Seg("clusterlist" :: Nil))) =>
+      case GET(Path(Seg(prep::"clusterlist" :: Nil))) =>
         JsonContent ~> ResponseString(write(getClusterViz(args)))
-      case GET(Path(Seg("topicdetails" :: topic :: Nil))) =>
+      case GET(Path(Seg(prep::"topicdetails" :: topic :: Nil))) =>
         JsonContent ~> ResponseString(write(getTopicDetail(topic, args)))
-      case GET(Path(Seg("topic" :: topic :: "consumer" :: Nil))) =>
+      case GET(Path(Seg(prep::"topic" :: topic :: "consumer" :: Nil))) =>
         JsonContent ~> ResponseString(write(getTopicAndConsumersDetail(topic, args)))
-      case GET(Path(Seg("activetopics" :: Nil))) =>
+      case GET(Path(Seg(prep::"activetopics" :: Nil))) =>
         JsonContent ~> ResponseString(write(getActiveTopics(args)))
     }
   }

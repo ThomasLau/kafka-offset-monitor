@@ -1,0 +1,9 @@
+java -cp KafkaOffsetMonitor-assembly-0.4.6-SNAPSHOT.jar \
+       com.quantifind.kafka.offsetapp.OffsetGetterWeb \
+     --offsetStorage kafka \
+     --kafkaBrokers 10.136.24.103:9091,10.136.24.206:9091 \
+     --zk 10.136.24.102:2181,10.136.24.103:2181 \
+     --port 8188 --context kkm \
+     --refresh 60.seconds \
+     --retain 3.days \
+     --dbName offsetapp_kafka
